@@ -2,7 +2,7 @@ import requests
 import uuid
 from urllib.parse import unquote
 import json
-import os
+import os, re
 
 def get_extension(filename):
     '''
@@ -84,3 +84,31 @@ def get_file_size(filepath, unit='MB'):
         'gb': filesize/1000/1000/1000,
         'tb': filesize/1000/1000/1000/1000
     }[unit.lower()]), ".2f")
+
+def validate_bundle_identifier(bundle_identifier):
+    ''' This method follows google play standards for bundle identifier validation
+    Rules:
+        1. It must have at least two segments (one or more dots).
+        2. Each segment must start with a letter.
+        3. All characters must be alphanumeric or an underscore [a-zA-Z0-9_]
+    '''
+    segments = bundle_identifier.split(".")
+    print(segments)
+    if len(segments) < 2:
+        return False, 'bundle identifier must have atleast a dot'
+    if '' in segments:
+        return False, 'In bundle identifier, each segment must start with a letter after .'
+    
+    for segment in segments:
+        if not re.match("^[a-zA-Z]+.*", segment):
+            return False, 'In bundle identifier, each segment must start with a letter'
+        if not (segment.strip().isalpha() or '_' in segment):
+            return False, 'In bundle identifier, each segment must be alphanumeric'
+    return True, 'valid bundle identifier'
+
+def is_bundle_identifier_registered(bundle_identifier):
+    url = 'https://play.google.com/store/apps/details?id={}'.format(bundle_identifier)
+    res = requests.get(url)
+    if res.ok:
+        return True, '{} bundle identifier already registered'.format(bundle_identifier)
+    return False, '{} bundle identifier is available'.format(bundle_identifier)
