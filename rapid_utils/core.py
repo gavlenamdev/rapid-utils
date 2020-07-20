@@ -61,12 +61,12 @@ def download_file(url, dirname, add_prefix=True):
 
     Args:
         url (str): url
-        dirname (str): dirname in which file will be downloading
+        dirname (str): directory name in which file will be downloading
         add_prefix (bool): adds uuid as prefix to filename if True, nothing otherwise
 
     Returns:
         bool: True if success, False otherwise
-        filepath (str): returns filepath
+        str: file path if success, error message otherwise
     """
     try:
         if add_prefix:
