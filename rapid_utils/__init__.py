@@ -1,5 +1,5 @@
-from .core import download_file, allowed_file
+from .core import download_file, is_allowed_extension, is_json, get_file_size
 
-__all__ = ['download_file', 'allowed_file']
+__all__ = ['download_file', 'is_allowed_extension', 'is_json', 'get_file_size']
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'

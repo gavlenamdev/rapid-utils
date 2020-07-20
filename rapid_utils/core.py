@@ -1,27 +1,32 @@
-import requests
-import uuid
-from urllib.parse import unquote
 import json
-import os, re
+import os
+import posixpath
+import uuid
+from json import JSONDecodeError
+from urllib.parse import unquote, urlsplit
+
+import requests
+
 
 def get_extension(filename):
-    '''
+    """
     returns extension of filename
 
     Args:
         filename (str): filename
     Returns:
         extension (str): returns extension in lowercase
-    '''
-    return filename.rsplit('.', 1)[1]
+    """
+    return filename.rsplit('.', 1)[1].lower()
+
 
 def is_allowed_extension(filename, formats):
-    '''
+    """
     checks whether filename extension is in formats
 
     Args:
         filename (str): filename
-        formats (list): list of extensions
+        formats (list): list of extensions in lowercase
 
     Returns:
         bool: True if filename extension is in formats, False otherwise
@@ -31,35 +36,61 @@ def is_allowed_extension(filename, formats):
         True
         >>> is_allowed_extension('video.mp4', ['zip', 'tar'])
         False
-    '''
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in formats
+    """
+    return '.' in filename and get_extension(filename) in formats
 
 
-def allowed_file(filename, formats):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in formats
+def get_filename_from_url(url):
+    """
+    Args:
+        url(str) : file url
+    Returns:
+        basename(str): file basename from url
+    """
+    url_path = urlsplit(url).path
+    basename = posixpath.basename(unquote(url_path))
+    # if (os.path.basename(basename) != basename or
+    #     unquote(posixpath.basename(urlpath)) != basename):
+    #     raise ValueError  # reject '%2f' or 'dir%5Cbasename.ext' on Windows
+    return basename
 
-def download_file(url, dirname=".", add_prefix=False):
-    '''
+
+def download_file(url, dirname, add_prefix=True):
+    """
     downloads files from url
 
     Args:
         url (str): url
-        dirname (str): directory name in which file will be downloading
+        dirname (str): dirname in which file will be downloading
         add_prefix (bool): adds uuid as prefix to filename if True, nothing otherwise
 
     Returns:
-        filename (str): returns filepath
-    '''
-    if add_prefix:
-        filename = unquote(os.path.sep.join([dirname, uuid.uuid1().hex + url.split("/")[-1]]))
-    else:
-        filename = unquote(os.path.sep.join([dirname, url.split("/")[-1]]))
-    file = requests.get(url, stream=True)
-    with open(filename,"wb") as f:
-        for chunk in file.iter_content(chunk_size=512 * 1024): 
-            if chunk:
-                f.write(chunk)
-    return filename
+        bool: True if success, False otherwise
+        filepath (str): returns filepath
+    """
+    try:
+        if add_prefix:
+            filename = os.path.join(dirname, uuid.uuid1().hex + get_filename_from_url(url))
+        else:
+            filename = os.path.join(dirname, get_filename_from_url(url))
+        res = requests.get(url, allow_redirects=True, stream=True)
+        print(res)
+        if not res.ok:
+            return False, 'url doest not exist: {}'.format(url)
+        if len(res.content) <= 0:
+            return False, 'no data exist in the url. {}'.format(url)
+        with open(filename, "wb") as f:
+            for chunk in res.iter_content(chunk_size=512 * 1024):
+                if chunk:
+                    f.write(chunk)
+        return True, filename
+    except requests.exceptions.ConnectionError as e:
+        print(e)
+        return False, 'url doest not exist: {}'.format(url)
+    except Exception as e:
+        print(e)
+        return False, 'error in url: {}'.format(url)
+
 
 def is_json(string=None, path=None):
     try:
@@ -69,46 +100,18 @@ def is_json(string=None, path=None):
         if path:
             json.load(open(path, "r"))
             return True
-    except:
+    except JSONDecodeError:
+        return False
+    except Exception:
         return False
 
-def get_json_from_url(url):
-    return requests.get(url).json()
 
-def get_file_size(filepath, unit='MB'):
-    filesize = os.path.getsize(filepath)#v /1000/1000, ".2f"))
+def get_file_size(file_path, unit='MB'):
+    file_size = os.path.getsize(file_path)  # v /1000/1000, ".2f"))
     return format(float({
-        'byte': filesize,
-        'kb': filesize/1000,
-        'mb': filesize/1000/1000,
-        'gb': filesize/1000/1000/1000,
-        'tb': filesize/1000/1000/1000/1000
-    }[unit.lower()]), ".2f")
-
-def validate_bundle_identifier(bundle_identifier):
-    ''' This method follows google play standards for bundle identifier validation
-    Rules:
-        1. It must have at least two segments (one or more dots).
-        2. Each segment must start with a letter.
-        3. All characters must be alphanumeric or an underscore [a-zA-Z0-9_]
-    '''
-    segments = bundle_identifier.split(".")
-    print(segments)
-    if len(segments) < 2:
-        return False, 'bundle identifier must have atleast a dot'
-    if '' in segments:
-        return False, 'In bundle identifier, each segment must start with a letter after .'
-    
-    for segment in segments:
-        if not re.match("^[a-zA-Z]+.*", segment):
-            return False, 'In bundle identifier, each segment must start with a letter'
-        if not (segment.strip().isalpha() or '_' in segment):
-            return False, 'In bundle identifier, each segment must be alphanumeric'
-    return True, 'valid bundle identifier'
-
-def is_bundle_identifier_registered(bundle_identifier):
-    url = 'https://play.google.com/store/apps/details?id={}'.format(bundle_identifier)
-    res = requests.get(url)
-    if res.ok:
-        return True, '{} bundle identifier already registered'.format(bundle_identifier)
-    return False, '{} bundle identifier is available'.format(bundle_identifier)
+                            'byte': file_size,
+                            'kb': file_size / 1000,
+                            'mb': file_size / 1000 / 1000,
+                            'gb': file_size / 1000 / 1000 / 1000,
+                            'tb': file_size / 1000 / 1000 / 1000 / 1000
+                        }[unit.lower()]), ".2f")
