@@ -11,7 +11,7 @@ setup(
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/gnaam/rapid-utils",
-    download_url="https://github.com/gnaam/rapid-utils/archive/0.0.3.tar.gz",
+    download_url="https://github.com/gnaam/rapid-utils/archive/v0.0.4.tar.gz",
     author="Namdev Gavle",
     author_email="gavlenamdevprabha@gmail.com",
     license="MIT",
